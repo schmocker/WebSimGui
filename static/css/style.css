@@ -30,6 +30,8 @@ body{
 
 .arrow{
   cursor: pointer;
+}.arrow:hover{
+    fill: blue;
 }
 .line{
   stroke: black;
@@ -64,6 +66,26 @@ body{
   justify-self: center;
 }
 
+.port{
+    fill: black;
+    cursor: crosshair;
+}
+.port:hover{
+    fill: deeppink;
+}
+#port_choice1{
+    fill: deeppink;
+}
+#port_choice2{
+    fill: red;
+}
+#port_choice2:hover{
+    fill: deeppink;
+}
+
+.port_selection{
+    fill: yellow;
+}
 
 
 

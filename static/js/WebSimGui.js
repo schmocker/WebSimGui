@@ -30,6 +30,7 @@ window.onload = function() {
     websimgui.addBox('box_1');
     websimgui.addBox('box_2');
     websimgui.addBox('box_3');
+    websimgui.boxes[2].output.addPort("gugus1");
     websimgui.boxes[2].input.addPort("gugus1");
     websimgui.boxes[2].input.addPort("gugus2");
     websimgui.boxes[2].input.addPort("gugus3");
@@ -82,7 +83,7 @@ class Connection {
             .attr("y2", 0);
 
         this.arrow = svg.append("polygon")
-            .style("cursor", "pointer")
+            .attr("class","arrow")
             .attr("points", "0,0 0,0 0,0")
     }
 
@@ -139,7 +140,8 @@ class Box {
             .on("dblclick ", function() {this_box.on_dbclick(d3.event)});
 
 
-        this.input = new Input(this)
+        this.input = new Rail(this, 'in', 'left');
+        this.output = new Rail(this, 'out', 'right');
 
     }
 
@@ -186,7 +188,7 @@ class Box {
     on_dragend(evt) {
         this.updatePosition();
         this.div.classed("box_drag", false);
-        var data = {
+        let data = {
             'box': this.id,
             'position': this.position
         };
@@ -204,34 +206,41 @@ class Box {
         this.div.style("left", x + "px");
         this.div.style("top", y + "px");
         //Position der Verbindungen
-        for (var i in this.connections_from) {
+        for (let i in this.connections_from) {
             this.connections_from[i].updatePosition();
         }
-        for (var i in this.connections_to) {
+        for (let i in this.connections_to) {
             this.connections_to[i].updatePosition();
         }
         this.input.updatePosition();
+        this.output.updatePosition();
     }
 
 
 }
 
 
-class Input {
-    constructor(box){
+class Rail {
+    constructor(box, in_out, border){
+        this.border = border;
+        this.in_out = in_out;
+
         this.box = box;
         this.ports = [];
     }
 
     updatePosition(){
-        var x = this.box.position["left"];
-        if (this.ports.length==1) {
-            var y = this.box.position["y_center"];
+        let box_pos = this.box.position;
+        let x = box_pos[this.border];
+
+        let y;
+        if (this.ports.length === 1) {
+            y = box_pos["y_center"];
         } else {
-            var y = this.box.position["top"];
+            y = box_pos["top"];
         }
 
-        for (var i = 0; i < this.ports.length; i++) {
+        for (let i = 0; i < this.ports.length; i++) {
             this.ports[i].updatePosition(x,y);
             y += this.box.position["height"]/(this.ports.length-1);
         }
@@ -244,64 +253,121 @@ class Input {
 }
 
 class Port{
-    constructor(portSide) {
-        this.portSide = portSide;
+    constructor(rail) {
+        this.rail = rail;
         this.pos = [0,0];
 
         this.size = 10;
-        var thisPort = this;
-        this.port = websimgui.svgContainer.append("polyline")
-            .attr("fill", "black")
-            //.attr("stroke-width", "0")
+        let thisPort = this;
+        this.triangle = websimgui.svgContainer.append("polyline")
+            .classed("port", true)
+            .attr("in_out", "this.rail.in_out")
+            .attr("box", "this.rail.box.id")
             .attr("points", "0,0")
-            .style("cursor", "crosshair")
+            .attr("Port", this)
             .on("mousedown", function(){thisPort.connecting(d3.event)});
+
         //.on("mouseover", function(){d3.select(this).attr("fill", "blue")})
         //.on("mouseout", function(){d3.select(this).attr("fill", "black")});
     }
 
+    get linePoint(){
+        switch (this.rail.border){
+            case "left":
+                return [this.pos[0]-this.size, this.pos[1]];
+            case "right":
+                return [this.pos[0]+this.size, this.pos[1]];
+        }
+    }
+
     connecting(evt){
-
-
+        let triangle1 = this.triangle;
+        triangle1.attr("id", "port_choice1");
         var line = websimgui.svgContainer.append("line")
             .style("stroke", "black")
             .style("stroke-dasharray", "5,5")
-            .attr("x1", this.pos[0])
-            .attr("y1", this.pos[1])
-            .attr("x2", this.pos[0])
-            .attr("y2", this.pos[1]);
+            .attr("x1", this.linePoint[0])
+            .attr("y1", this.linePoint[1])
+            .attr("x2", this.linePoint[0])
+            .attr("y2", this.linePoint[1]);
 
-        d3.selectAll("polyline").on("mouseover", function(){
-            d3.select(this).on("mouseleave", function(){
-                line.style("stroke-dasharray", "5,5");
-                d3.select(this).on("mouseleave",null);
+        let in_out;
+        switch (this.rail.in_out){
+            case "in":
+                in_out = ".out";
+                break;
+            case "out":
+                in_out = ".in";
+                break;
+        }
+        console.log(in_out);
+
+        d3.selectAll('.port')
+            .filter(in_out)
+            .each(function (d,i) {
+                d3.select(this).classed("port_selection", true);
             });
-            line.style("stroke-dasharray", "none");
-        });
 
-        var w = d3.select(window)
-            .on("mousemove", mousemove)
+        d3.selectAll('.port_selection')
+            .on("mouseover", function() {
+                d3.select(this).classed("port_choice2", true);
+                line.style("stroke", "blue");
+            })
+            .on("mouseleave", function(d, i) {
+                line.style("stroke", "black");
+                console.log("mouseleave");
+                d3.select(this).classed("port_choice2", false)
+            });
+
+
+        var w = websimgui.svgContainer
+            .on("mousemove", function(){
+                var pos = d3.mouse(this);
+                line.attr("x2", pos[0]);
+                line.attr("y2", pos[1]);
+                let sel = d3.select(".port_selection");
+                //sel.parentNode.appendChild(sel);
+            })
             .on("mouseup", mouseup);
 
         d3.event.preventDefault();
 
-        function mousemove() {
-            var pos = d3.mouse(websimgui.svgContainer.node());
-            line.attr("x2", pos[0]);
-            line.attr("y2", pos[1]);
-        }
+
 
         function mouseup() {
             line.remove();
             w.on("mousemove", null).on("mouseup", null);
+            triangle1.attr("id", null);
+            d3.selectAll('.port').classed("port_selection", false);
+            d3.selectAll('.port').classed("port_choice2", false);
         }
 
     }
 
     updatePosition(x,y){
         this.pos = [x,y];
-        console.log("hallo");
-        var form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5];
+
+        let form;
+        switch (this.rail.border + "|" + this.rail.in_out){
+            case "left|in":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break;
+            case "left|out":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break; // unused for now
+            case "right|in":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break; // unused for now
+            case "right|out":
+                form = [0,this.size/1.5,this.size,0,0,-this.size/1.5]; break;
+            case "top|in":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break; // unused for now
+            case "top|out":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break; // unused for now
+            case "bottom|in":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break; // unused for now
+            case "bottom|out":
+                form = [-this.size,this.size/1.5,0,0,-this.size,-this.size/1.5]; break; // unused for now
+        }
+
+
         var point = "X1,Y1 X2,Y2 X3,Y3"
             .replace("X1",form[0]+x)
             .replace("Y1",form[1]+y)
@@ -310,7 +376,7 @@ class Port{
             .replace("X3",form[4]+x)
             .replace("Y3",form[5]+y);
 
-        this.port.attr("points", point);
+        this.triangle.attr("points", point);
     }
 }
 
