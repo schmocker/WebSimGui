@@ -73,19 +73,19 @@ body{
 .port:hover{
     fill: deeppink;
 }
-#port_choice1{
-    fill: deeppink;
+.port_inselectable {
+    fill: black;
 }
-#port_choice2{
-    fill: red;
-}
-#port_choice2:hover{
-    fill: deeppink;
-}
-
-.port_selection{
+.port_selectable {
     fill: yellow;
 }
+.port_selectable:hover {
+    fill: blue;
+}
+.port_choice1{
+    fill: green;
+}
+
 
 
 
